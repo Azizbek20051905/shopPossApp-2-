@@ -116,7 +116,7 @@ class _ProductScanBottomSheetState extends State<ProductScanBottomSheet> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      widget.product.barcode,
+                      widget.product.barcode ?? 'No Barcode',
                       style: TextStyle(fontSize: 13, color: Colors.grey[600], fontFamily: 'monospace'),
                     ),
                     const SizedBox(height: 8),

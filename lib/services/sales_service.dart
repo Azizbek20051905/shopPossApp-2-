@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'api_service.dart';
 import '../models/cart_item.dart';
 
@@ -13,11 +14,15 @@ class SalesService {
       });
 
       if (response.statusCode == 201 || response.statusCode == 200) {
-        return response.data['sale_id'];
+        return response.data['id'];
       }
       return null;
     } catch (e) {
-      print('Submit Sale Error: $e');
+      if (e is DioException) {
+        print('Submit Sale Error [${e.response?.statusCode}]: ${e.response?.data}');
+      } else {
+        print('Submit Sale Error: $e');
+      }
       return null;
     }
   }
@@ -25,7 +30,7 @@ class SalesService {
   /// Wrapper for CartProvider that takes [CartItem] objects.
   Future<bool> createSale(List<CartItem> items) async {
     final payload = items.map((item) => {
-      'product_id': item.product.id,
+      'product': item.product.id,
       'quantity': item.quantity,
     }).toList();
 

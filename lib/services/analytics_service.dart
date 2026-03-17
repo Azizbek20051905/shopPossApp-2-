@@ -1,18 +1,17 @@
+import 'package:dio/dio.dart';
 import 'api_service.dart';
 
 class AnalyticsService {
-  /// GET /api/analytics/
-  /// Fetches sales summary and top products for the dashboard.
-  Future<Map<String, dynamic>?> fetchAnalytics() async {
+  final Dio _dio = ApiService.dio;
+
+  /// GET /api/analytics/?period=today|week|month|year
+  Future<Map<String, dynamic>> fetchAnalytics({String period = 'month'}) async {
     try {
-      final response = await ApiService.dio.get('analytics/');
-      if (response.statusCode == 200) {
-        return response.data;
-      }
-      return null;
-    } catch (e) {
-      print('Fetch Analytics Error: $e');
-      return null;
+      final response = await _dio.get('analytics/', queryParameters: {'period': period});
+      return response.data as Map<String, dynamic>;
+    } on DioException catch (e) {
+      print('Fetch Analytics Error: ${e.response?.data ?? e.message}');
+      rethrow;
     }
   }
 }

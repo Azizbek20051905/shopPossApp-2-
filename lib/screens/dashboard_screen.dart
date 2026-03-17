@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 import '../widgets/app_header.dart';
-import '../services/analytics_service.dart';
-import '../services/sales_service.dart';
-import '../services/product_service.dart';
+import '../services/dashboard_service.dart';
+import '../models/dashboard_data.dart';
 import '../models/product.dart';
 import 'product_form_screen.dart';
 import 'products_screen.dart';
 import '../widgets/app_drawer.dart';
+import 'dart:math' as math;
 
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
@@ -17,13 +18,10 @@ class DashboardScreen extends ConsumerStatefulWidget {
 }
 
 class _DashboardScreenState extends ConsumerState<DashboardScreen> {
-  final AnalyticsService _analyticsService = AnalyticsService();
-  final SalesService _salesService = SalesService();
-  final ProductService _productService = ProductService();
-
+  final DashboardService _dashboardService = DashboardService();
   bool _isLoading = true;
-  List<Map<String, dynamic>> _recentSales = [];
-  List<Product> _lowStockProducts = [];
+  DashboardData? _dashboardData;
+  final NumberFormat _currencyFormat = NumberFormat('#,###');
 
   // Global Design System
   static const Color primaryColor = Color(0xFF2FA7A4);
@@ -41,18 +39,20 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   Future<void> _loadAllData() async {
     setState(() => _isLoading = true);
     try {
-      final sales = await _salesService.fetchSalesHistory();
-      final products = await _productService.fetchProducts();
-
+      final data = await _dashboardService.fetchDashboardData();
       if (mounted) {
         setState(() {
-          _recentSales = sales.take(5).toList();
-          _lowStockProducts = products.where((p) => p.isLowStock || p.isOutOfStock).toList();
+          _dashboardData = data;
           _isLoading = false;
         });
       }
     } catch (e) {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error loading dashboard: $e')),
+        );
+      }
     }
   }
 
@@ -124,25 +124,23 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       children: [
         _buildStatCard(
           'Today\'s Sales', 
-          '830,000', 
+          _currencyFormat.format(_dashboardData?.todaySales ?? 0), 
           Icons.shopping_bag_outlined,
           isGradient: true,
-          trend: '▼ 25% Today',
         ),
         _buildStatCard(
           'Yesterday\'s Sales', 
-          '616,000',
+          _currencyFormat.format(_dashboardData?.yesterdaySales ?? 0),
           Icons.calendar_today_outlined,
-          trend: '- 10% vs day before',
         ),
         _buildStatCard(
           'Today\'s Profit', 
-          '120,000',
+          _currencyFormat.format(_dashboardData?.todayProfit ?? 0),
           Icons.monetization_on_outlined,
         ),
         _buildStatCard(
           'Total Orders', 
-          '45',
+          (_dashboardData?.totalOrders ?? 0).toString(),
           Icons.shopping_cart_outlined,
           isCurrency: false,
         ),
@@ -294,25 +292,26 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   }
 
   Widget _buildLowStockList() {
+    final lowStock = _dashboardData?.lowStock ?? [];
     return SizedBox(
       height: 90,
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
         physics: const BouncingScrollPhysics(),
-        itemCount: _lowStockProducts.isEmpty ? 3 : _lowStockProducts.length,
+        itemCount: lowStock.isEmpty ? 3 : lowStock.length,
         clipBehavior: Clip.none,
         itemBuilder: (context, index) {
-          if (_isLoading || _lowStockProducts.isEmpty) {
+          if (_isLoading || lowStock.isEmpty) {
             return _buildLowStockCardPlaceholder();
           }
-          final product = _lowStockProducts[index];
-          return _buildLowStockCard(product);
+          final item = lowStock[index];
+          return _buildLowStockCard(item);
         },
       ),
     );
   }
 
-  Widget _buildLowStockCard(Product product) {
+  Widget _buildLowStockCard(LowStockProduct product) {
     return Container(
       width: 170,
       margin: const EdgeInsets.only(right: 12),
@@ -342,7 +341,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: textColor),
                 ),
                 Text(
-                  'Stock: ${product.stock.toInt()}', 
+                  'Stock: ${math.max(0, product.stock).toInt()}', 
                   style: const TextStyle(color: secondaryTextColor, fontSize: 11),
                 ),
                 const SizedBox(height: 4),
@@ -367,11 +366,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               color: bgColor, 
               borderRadius: BorderRadius.circular(10),
             ),
-            child: product.imagePath != null
-                ? ClipRRect(
-                    borderRadius: BorderRadius.circular(10),
-                    child: Image.network(product.imagePath!, fit: BoxFit.cover, errorBuilder: (_,__,___) => const Icon(Icons.inventory_2_outlined, size: 20, color: Colors.grey)))
-                : const Icon(Icons.inventory_2_outlined, size: 20, color: Colors.grey),
+            child: const Icon(Icons.inventory_2_outlined, size: 20, color: Colors.grey),
           ),
         ],
       ),
@@ -411,14 +406,30 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   }
 
   Widget _buildRecentSalesList() {
+    final recentSales = _dashboardData?.recentSales ?? [];
     return ListView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      itemCount: _recentSales.isEmpty ? 2 : _recentSales.length,
+      itemCount: recentSales.isEmpty ? 2 : recentSales.length,
       padding: EdgeInsets.zero,
       itemBuilder: (context, index) {
-        if (_isLoading || _recentSales.isEmpty) return _buildRecentSalePlaceholder();
-        final sale = _recentSales[index];
+        if (_isLoading || recentSales.isEmpty) return _buildRecentSalePlaceholder();
+        final sale = recentSales[index];
+        
+        // Parse time
+        String timeAgo = 'Just now';
+        try {
+          final dt = DateTime.parse(sale.createdAt);
+          final diff = DateTime.now().difference(dt);
+          if (diff.inDays > 0) {
+            timeAgo = '${diff.inDays}d ago';
+          } else if (diff.inHours > 0) {
+            timeAgo = '${diff.inHours}h ago';
+          } else if (diff.inMinutes > 0) {
+            timeAgo = '${diff.inMinutes}m ago';
+          }
+        } catch (_) {}
+
         return Container(
           margin: const EdgeInsets.only(bottom: 12),
           padding: const EdgeInsets.all(16),
@@ -439,19 +450,19 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Order #${sale['id']}', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15, color: textColor)),
-                  Text('${sale['item_count']} items', style: const TextStyle(color: secondaryTextColor, fontSize: 12)),
+                  Text('Order #${sale.id}', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15, color: textColor)),
+                  Text('${sale.items} items', style: const TextStyle(color: secondaryTextColor, fontSize: 12)),
                 ],
               ),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Text(
-                    '${sale['total_amount']} UZS',
+                    '${_currencyFormat.format(sale.total)} UZS',
                     style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: primaryColor),
                   ),
                   Text(
-                    '${index * 5 + 2} mins ago',
+                    timeAgo,
                     style: const TextStyle(color: secondaryTextColor, fontSize: 11),
                   ),
                 ],

@@ -1,10 +1,10 @@
 import '../services/api_service.dart';
 
-enum ProductUnit { piece, kg }
+enum ProductType { piece, weight }
 
-extension ProductUnitExt on ProductUnit {
-  String get label => this == ProductUnit.piece ? 'Piece' : 'Kg';
-  String get value => this == ProductUnit.piece ? 'piece' : 'kg';
+extension ProductTypeExt on ProductType {
+  String get label => this == ProductType.piece ? 'Piece' : 'Weight';
+  String get value => this == ProductType.piece ? 'piece' : 'weight';
 }
 
 /// Predefined product categories.
@@ -20,32 +20,32 @@ const productCategories = [
 class Product {
   final int? id;
   final String name;
-  final String barcode;
+  final String? barcode;
   final String category;
   final double purchasePrice;
   final double salePrice;
-  final int stock;
+  final double stock; // Changed to double to support kg
   final double minStock;
-  final ProductUnit unit;
+  final ProductType type;
   final String? imagePath;
 
   const Product({
     this.id,
     required this.name,
-    required this.barcode,
+    this.barcode,
     this.category = 'Other',
     required this.purchasePrice,
     required this.salePrice,
-    this.stock = 0,
+    this.stock = 0.0,
     this.minStock = 10.0,
-    this.unit = ProductUnit.piece,
+    this.type = ProductType.piece,
     this.imagePath,
   });
 
   /// Sale price (used in POS/cart).
   double get price => salePrice;
 
-  bool get isWeighted => unit == ProductUnit.kg;
+  bool get isWeighted => type == ProductType.weight;
 
   bool get isLowStock => stock > 0 && stock <= minStock;
 
@@ -53,7 +53,7 @@ class Product {
 
   String get stockDisplay {
     final displayStock = stock < 0 ? 0 : stock;
-    return isWeighted ? '${displayStock.toStringAsFixed(2)} kg' : '$displayStock pcs';
+    return isWeighted ? '${displayStock.toStringAsFixed(2)} kg' : '${displayStock.toInt()} pcs';
   }
 
   Map<String, dynamic> toMap() {
@@ -66,13 +66,13 @@ class Product {
       'sale_price': salePrice,
       'stock_quantity': stock,
       'min_stock': minStock,
-      'unit': unit.value,
+      'type': type.value,
       'image_path': imagePath,
     };
   }
 
   factory Product.fromMap(Map<String, dynamic> map) {
-    final unitStr = map['unit'] as String?;
+    final typeStr = map['type'] as String? ?? map['unit'] as String?;
 
     // Helper to parse double safely
     double parseDouble(dynamic value) {
@@ -82,27 +82,19 @@ class Product {
       return 0.0;
     }
 
-    // Helper to parse int safely
-    int parseInt(dynamic value) {
-      if (value == null) return 0;
-      if (value is num) return value.toInt();
-      if (value is String) return double.tryParse(value)?.toInt() ?? 0;
-      return 0;
-    }
-
     try {
       return Product(
         id: map['id'] as int?,
         name: map['name'] as String,
-        barcode: map['barcode'] as String,
+        barcode: map['barcode'] as String?,
         category: (map['category'] is Map)
             ? (map['category']['name'] as String? ?? 'Other')
             : (map['category'] as String? ?? 'Other'),
         purchasePrice: parseDouble(map['purchase_price']),
         salePrice: parseDouble(map['sale_price'] ?? map['price']),
-        stock: parseInt(map['stock_quantity'] ?? map['stock']),
+        stock: parseDouble(map['stock_quantity'] ?? map['stock']),
         minStock: parseDouble(map['min_stock']),
-        unit: unitStr == 'kg' ? ProductUnit.kg : ProductUnit.piece,
+        type: typeStr == 'weight' || typeStr == 'kg' ? ProductType.weight : ProductType.piece,
         imagePath: () {
           String? path = map['image'] as String? ?? map['image_path'] as String?;
           if (path != null && path.startsWith('/media/')) {
@@ -125,9 +117,9 @@ class Product {
     String? category,
     double? purchasePrice,
     double? salePrice,
-    int? stock,
+    double? stock,
     double? minStock,
-    ProductUnit? unit,
+    ProductType? type,
     String? imagePath,
   }) {
     return Product(
@@ -139,7 +131,7 @@ class Product {
       salePrice: salePrice ?? this.salePrice,
       stock: stock ?? this.stock,
       minStock: minStock ?? this.minStock,
-      unit: unit ?? this.unit,
+      type: type ?? this.type,
       imagePath: imagePath ?? this.imagePath,
     );
   }

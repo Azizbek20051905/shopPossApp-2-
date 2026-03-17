@@ -78,7 +78,7 @@ class _PosScreenState extends ConsumerState<PosScreen> {
     setState(() {
       _filtered = _products.where((p) =>
         p.name.toLowerCase().contains(query) ||
-        p.barcode.contains(query)
+        (p.barcode?.contains(query) ?? false)
       ).toList();
     });
   }
@@ -386,18 +386,30 @@ class _PosScreenState extends ConsumerState<PosScreen> {
               final product = _filtered[index];
               return ProductCard(
                 product: product,
-                onAdd: () {
-                  ref.read(cartProvider).addToCart(product);
-                  ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('${product.name} added'),
-                      duration: const Duration(milliseconds: 500),
-                      backgroundColor: primaryColor,
-                      behavior: SnackBarBehavior.floating,
-                      margin: const EdgeInsets.only(bottom: 80, left: 20, right: 20),
-                    ),
-                  );
+                onAdd: () async {
+                  if (product.isWeighted) {
+                    final qty = await showDialog<double>(
+                      context: context,
+                      builder: (context) => ScanQuantityDialog(product: product),
+                    );
+                    if (qty != null && mounted) {
+                      ref.read(cartProvider).addToCart(product, quantity: qty);
+                    }
+                  } else {
+                    ref.read(cartProvider).addToCart(product);
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('${product.name} added'),
+                          duration: const Duration(milliseconds: 500),
+                          backgroundColor: primaryColor,
+                          behavior: SnackBarBehavior.floating,
+                          margin: const EdgeInsets.only(bottom: 80, left: 20, right: 20),
+                        ),
+                      );
+                    }
+                  }
                 },
               );
             },

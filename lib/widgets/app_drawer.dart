@@ -1,15 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../providers/auth_provider.dart';
 import '../screens/home_screen.dart';
 import '../screens/products_screen.dart';
 import '../screens/pos_screen.dart';
 import '../screens/analytics_screen.dart';
 import '../screens/settings_screen.dart';
 
-class AppDrawer extends StatelessWidget {
+class AppDrawer extends ConsumerWidget {
   const AppDrawer({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final authState = ref.watch(authProvider);
+    final user = authState.user;
+
     const Color primaryColor = Color(0xFF2FA7A4);
     const Color textColor = Color(0xFF2C3E50);
     const Color bgColor = Color(0xFFF6F7F9);
@@ -92,18 +97,21 @@ class AppDrawer extends StatelessWidget {
                       CircleAvatar(
                         radius: 16,
                         backgroundColor: primaryColor,
-                        child: const Text('A', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                        child: Text(
+                          user?['username']?.toString().substring(0, 1).toUpperCase() ?? 'A',
+                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                        ),
                       ),
                       const SizedBox(width: 12),
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
-                            'Cashier: Azizbek',
-                            style: TextStyle(fontWeight: FontWeight.w700, color: textColor),
+                          Text(
+                            'Cashier: ${user?['username'] ?? 'User'}',
+                            style: const TextStyle(fontWeight: FontWeight.w700, color: textColor),
                           ),
                           Text(
-                            'Admin Role',
+                            user?['role'] ?? 'Staff',
                             style: TextStyle(fontSize: 11, color: Colors.grey[600]),
                           ),
                         ],
@@ -210,7 +218,7 @@ class AppDrawer extends StatelessWidget {
               height: 56,
               child: OutlinedButton.icon(
                 onPressed: () {
-                  // Handle logout
+                  ref.read(authProvider.notifier).logout();
                   Navigator.pop(context);
                 },
                 icon: const Icon(Icons.logout, color: Colors.red),

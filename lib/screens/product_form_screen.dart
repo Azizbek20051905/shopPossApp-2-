@@ -33,7 +33,7 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
   late final TextEditingController _salePriceCtrl;
   late final TextEditingController _stockCtrl;
   late final TextEditingController _minStockCtrl;
-  ProductUnit _unit = ProductUnit.piece;
+  ProductType _type = ProductType.piece;
 
   static const Color primaryColor = Color(0xFF2FA7A4);
   static const Color bgColor = Color(0xFFF6F7F9);
@@ -50,7 +50,7 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
     _salePriceCtrl = TextEditingController(text: p?.salePrice.toString() ?? '');
     _stockCtrl = TextEditingController(text: p?.stock.toString() ?? '0');
     _minStockCtrl = TextEditingController(text: p?.minStock.toString() ?? '10');
-    _unit = p?.unit ?? ProductUnit.piece;
+    _type = p?.type ?? ProductType.piece;
     _loadCategories();
   }
 
@@ -161,8 +161,8 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
       'sale_price': _salePriceCtrl.text.trim(),
       'stock_quantity': _stockCtrl.text.trim(),
       'min_stock': _minStockCtrl.text.trim(),
-      'unit': _unit.value,
-      if (_selectedCategoryId != null) 'category': _selectedCategoryId,
+      'type': _type.value,
+      if (_selectedCategoryId != null) 'category_id': _selectedCategoryId,
     };
 
     try {
@@ -308,9 +308,9 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
                     const Divider(height: 24),
                     _buildInputField(
                       _barcodeCtrl, 
-                      'Barcode / SKU', 
+                      'Barcode / SKU (Optional)', 
                       Icons.qr_code_scanner_outlined, 
-                      required: true,
+                      required: false,
                       suffixIcon: IconButton(
                         icon: const Icon(Icons.center_focus_strong, color: primaryColor),
                         tooltip: 'Scan Barcode',
@@ -376,12 +376,12 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
                       ],
                     ),
                     const Divider(height: 24),
-                    _buildDropdownField<ProductUnit>(
-                      label: 'Unit',
+                    _buildDropdownField<ProductType>(
+                      label: 'Type',
                       icon: Icons.scale_outlined,
-                      value: _unit,
-                      items: ProductUnit.values.map((u) => DropdownMenuItem(value: u, child: Text(u.label))).toList(),
-                      onChanged: (v) => setState(() => _unit = v!),
+                      value: _type,
+                      items: ProductType.values.map((u) => DropdownMenuItem(value: u, child: Text(u.label))).toList(),
+                      onChanged: (v) => setState(() => _type = v!),
                     ),
                   ],
                 ),

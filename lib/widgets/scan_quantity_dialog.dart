@@ -28,15 +28,16 @@ class _ScanQuantityDialogState extends State<ScanQuantityDialog> {
 
   void _increment() {
     setState(() {
-      _quantity += 1;
+      _quantity += widget.product.isWeighted ? 0.1 : 1.0;
       _controller.text = _quantity.toStringAsFixed(widget.product.isWeighted ? 2 : 0);
     });
   }
 
   void _decrement() {
-    if (_quantity > 1) {
+    final step = widget.product.isWeighted ? 0.1 : 1.0;
+    if (_quantity > step) {
       setState(() {
-        _quantity -= 1;
+        _quantity -= step;
         _controller.text = _quantity.toStringAsFixed(widget.product.isWeighted ? 2 : 0);
       });
     }
@@ -81,7 +82,7 @@ class _ScanQuantityDialogState extends State<ScanQuantityDialog> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        '${widget.product.salePrice.toStringAsFixed(0)} UZS',
+                        '${widget.product.salePrice.toStringAsFixed(0)} UZS / ${widget.product.isWeighted ? "kg" : "pcs"}',
                         style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: primaryColor),
                       ),
                     ],
@@ -90,9 +91,9 @@ class _ScanQuantityDialogState extends State<ScanQuantityDialog> {
               ],
             ),
             const SizedBox(height: 32),
-            const Text(
-              'ENTER QUANTITY',
-              style: TextStyle(fontWeight: FontWeight.w900, fontSize: 12, color: Colors.grey, letterSpacing: 1),
+            Text(
+              widget.product.isWeighted ? 'ENTER WEIGHT (KG)' : 'ENTER QUANTITY',
+              style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 12, color: Colors.grey, letterSpacing: 1),
             ),
             const SizedBox(height: 16),
             Row(

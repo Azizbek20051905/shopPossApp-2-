@@ -73,7 +73,7 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
     setState(() {
       _filtered = _products.where((p) =>
         p.name.toLowerCase().contains(query) ||
-        p.barcode.contains(query)
+        (p.barcode?.contains(query) ?? false)
       ).toList();
     });
   }
