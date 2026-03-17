@@ -39,12 +39,19 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               // LEFT: Hamburger Menu
-              GestureDetector(
-                onTap: onMenuPressed ?? () => Scaffold.of(context).openDrawer(),
-                child: const Icon(
-                  Icons.menu,
-                  size: 24,
-                  color: Color(0xFF2C3E50),
+              Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(8),
+                  onTap: onMenuPressed ?? () => Scaffold.of(context).openDrawer(),
+                  child: const Padding(
+                    padding: EdgeInsets.all(8.0),
+                    child: Icon(
+                      Icons.menu,
+                      size: 26,
+                      color: Color(0xFF2C3E50),
+                    ),
+                  ),
                 ),
               ),
 

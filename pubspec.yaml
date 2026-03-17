@@ -43,6 +43,7 @@ dependencies:
   permission_handler: ^11.0.1
   shared_preferences: ^2.5.2
   fl_chart: ^0.70.2
+  image_cropper: ^11.0.0
 
 dev_dependencies:
   flutter_test:

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../widgets/app_header.dart';
 import '../services/analytics_service.dart';
+import '../widgets/app_drawer.dart';
 
 class AnalyticsScreen extends ConsumerStatefulWidget {
   const AnalyticsScreen({super.key});
@@ -55,6 +56,7 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
           child: const Icon(Icons.refresh, color: textColor, size: 24),
         ),
       ),
+      drawer: const AppDrawer(),
       body: _isLoading 
         ? const Center(child: CircularProgressIndicator(color: primaryColor))
         : SingleChildScrollView(

@@ -8,8 +8,8 @@ import '../services/product_service.dart';
 import '../widgets/product_card.dart';
 import '../widgets/app_header.dart';
 import 'native_scanner_screen.dart';
-import '../widgets/inline_scanner_view.dart';
 import '../widgets/scan_quantity_dialog.dart';
+import '../widgets/app_drawer.dart';
 
 class PosScreen extends ConsumerStatefulWidget {
   const PosScreen({super.key});
@@ -29,8 +29,7 @@ class _PosScreenState extends ConsumerState<PosScreen> {
   bool _isProcessingSale = false;
   final TextEditingController _searchController = TextEditingController();
 
-  // New Scanner States
-  ScannerMode _scannerMode = ScannerMode.hidden;
+  // Spacer/Configuration
 
   static const Color primaryColor = Color(0xFF2FA7A4);
   static const Color bgColor = Color(0xFFF6F7F9);
@@ -108,11 +107,7 @@ class _PosScreenState extends ConsumerState<PosScreen> {
               backgroundColor: primaryColor,
               duration: const Duration(seconds: 1),
               behavior: SnackBarBehavior.floating,
-              margin: EdgeInsets.only(
-                bottom: _scannerMode == ScannerMode.fullscreen ? 20 : 80, 
-                left: 20, 
-                right: 20
-              ),
+              margin: const EdgeInsets.only(bottom: 80, left: 20, right: 20),
             ),
           );
         }
@@ -172,14 +167,15 @@ class _PosScreenState extends ConsumerState<PosScreen> {
 
     return Scaffold(
       backgroundColor: bgColor,
-      appBar: _scannerMode == ScannerMode.fullscreen ? null : const AppHeader(title: 'POS'),
+      appBar: const AppHeader(title: 'POS'),
+      drawer: const AppDrawer(),
       body: Stack(
         children: [
           // MAIN LAYOUT
           Column(
             children: [
-              // 1. CART SELECTOR (Only in normal mode)
-              if (_scannerMode != ScannerMode.fullscreen) _buildCartSelector(cartState),
+              // 1. CART SELECTOR
+              _buildCartSelector(cartState),
 
               // 2. SEARCH + SCAN TOGGLE ROW
               Container(
@@ -206,34 +202,27 @@ class _PosScreenState extends ConsumerState<PosScreen> {
                     ),
                     const SizedBox(width: 10),
                     _buildTopActionBtn(
-                      icon: _scannerMode != ScannerMode.hidden ? Icons.camera_alt : Icons.camera_alt_outlined,
-                      isActive: _scannerMode != ScannerMode.hidden,
-                      onPressed: () => setState(() {
-                        _scannerMode = _scannerMode == ScannerMode.hidden 
-                            ? ScannerMode.mini 
-                            : ScannerMode.hidden;
-                      }),
+                      icon: Icons.qr_code_scanner,
+                      isActive: true,
+                      onPressed: () {
+                        // Open scanner as a separate screen
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const NativeScannerScreen()),
+                        );
+                      },
                     ),
                   ],
                 ),
               ),
 
-              // 3. INLINE SCANNER AREA (Below Search Bar)
-              if (_scannerMode != ScannerMode.hidden)
-                InlineScannerView(
-                  mode: _scannerMode,
-                  onBarcodeDetected: _onBarcodeDetected,
-                  onClose: () => setState(() => _scannerMode = ScannerMode.hidden),
-                  onModeChanged: (mode) => setState(() => _scannerMode = mode),
-                ),
-              
-              // 4. PRODUCTS GRID
+              // 3. PRODUCTS GRID
               Expanded(
                 child: _buildProductsSection(),
               ),
               
               // Spacer for the collapsed cart bar
-              SizedBox(height: _scannerMode == ScannerMode.fullscreen ? 60 : 70),
+              const SizedBox(height: 70),
             ],
           ),
 

@@ -48,68 +48,80 @@ class _InlineScannerViewState extends State<InlineScannerView> with SingleTicker
   Widget build(BuildContext context) {
     if (widget.mode == ScannerMode.hidden) return const SizedBox.shrink();
 
-    final double targetHeight = widget.mode == ScannerMode.fullscreen ? 420.0 : 220.0;
+    final double targetHeight = widget.mode == ScannerMode.fullscreen ? 450.0 : 250.0;
 
-    return Container(
-      width: double.infinity,
-      height: targetHeight,
-      margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Stack(
-        children: [
-          // 1. CAMERA PREVIEW
-          Positioned.fill(
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(20),
-              child: OverflowBox(
-                alignment: Alignment.center,
-                child: AspectRatio(
-                  aspectRatio: 16 / 9,
-                  child: AndroidView(
-                    viewType: 'com.pos.pos_app/native_scanner',
-                    onPlatformViewCreated: (id) {
-                      _controller = NativeScannerController(
-                        viewId: id,
-                        onBarcodeDetected: widget.onBarcodeDetected,
-                        onError: (error) => print('Scanner Error: $error'),
-                      );
-                    },
-                    creationParamsCodec: const StandardMessageCodec(),
-                  ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+      child: Container(
+        height: targetHeight,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.12),
+              blurRadius: 15,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(24),
+          child: Stack(
+            fit: StackFit.expand, // CRITICAL: Force children to fill the container
+            children: [
+              // 1. CAMERA PREVIEW - The base layer
+              AndroidView(
+                viewType: 'com.pos.pos_app/native_scanner',
+                onPlatformViewCreated: (id) {
+                  _controller = NativeScannerController(
+                    viewId: id,
+                    onBarcodeDetected: widget.onBarcodeDetected,
+                    onError: (error) => print('Scanner Error: $error'),
+                  );
+                },
+                creationParamsCodec: const StandardMessageCodec(),
+              ),
+
+              // 2. TRANSPARENT DARK OVERLAY
+              Positioned.fill(
+                child: Container(
+                  color: Colors.black.withOpacity(0.35),
                 ),
               ),
-            ),
-          ),
 
-          // 2. SCANNING FRAME
-          _buildScanningFrame(),
+              // 3. SCANNER FRAME
+              _buildCenteredScannerOverlay(),
 
-          // 3. OVERLAY CONTROLS (Floating on top of camera)
-          Positioned(
-            top: 12,
-            right: 12,
-            child: Row(
-              children: [
-                _buildControlBtn(
+              // 4. SCANNER CONTROL BUTTONS
+              
+              // Top Left: Flash
+              Positioned(
+                top: 16,
+                left: 16,
+                child: _buildCornerIconButton(
                   icon: _isFlashOn ? Icons.flash_on : Icons.flash_off,
                   onPressed: () {
                     setState(() => _isFlashOn = !_isFlashOn);
                     _controller?.toggleFlash(_isFlashOn);
                   },
                 ),
-                const SizedBox(width: 8),
-                _buildControlBtn(
+              ),
+
+              // Top Right: Close
+              Positioned(
+                top: 16,
+                right: 16,
+                child: _buildCornerIconButton(
+                  icon: Icons.close,
+                  onPressed: widget.onClose,
+                ),
+              ),
+
+              // Bottom Left: Resize
+              Positioned(
+                bottom: 16,
+                left: 16,
+                child: _buildCornerIconButton(
                   icon: widget.mode == ScannerMode.fullscreen ? Icons.fullscreen_exit : Icons.fullscreen,
                   onPressed: () {
                     widget.onModeChanged(
@@ -117,61 +129,52 @@ class _InlineScannerViewState extends State<InlineScannerView> with SingleTicker
                     );
                   },
                 ),
-                const SizedBox(width: 8),
-                _buildControlBtn(
-                  icon: Icons.close,
-                  onPressed: widget.onClose,
-                  color: Colors.redAccent,
-                ),
-              ],
-            ),
-          ),
+              ),
 
-          // 4. STATUS INDICATOR
-          Positioned(
-            bottom: 12,
-            left: 0, right: 0,
-            child: Center(
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.6),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 8, height: 8,
-                      decoration: const BoxDecoration(
-                        color: Colors.greenAccent,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    const Text(
-                      'READY',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: 1,
-                      ),
-                    ),
-                  ],
+              // Bottom Right: 1x Info
+              Positioned(
+                bottom: 16,
+                right: 16,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.3),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Text(
+                    '1x',
+                    style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                  ),
                 ),
               ),
-            ),
+
+              // BOTTOM BRANDING
+              Positioned(
+                bottom: 12,
+                left: 0, right: 0,
+                child: Center(
+                  child: Text(
+                    'POS SCANNER',
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.4),
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 2,
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
 
-  Widget _buildScanningFrame() {
+  Widget _buildCenteredScannerOverlay() {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final double frameWidth = constraints.maxWidth * 0.65;
+        final double frameWidth = constraints.maxWidth * 0.75;
         final double frameHeight = constraints.maxHeight * 0.45;
 
         return Stack(
@@ -182,12 +185,12 @@ class _InlineScannerViewState extends State<InlineScannerView> with SingleTicker
                 width: frameWidth,
                 height: frameHeight,
                 decoration: BoxDecoration(
-                  border: Border.all(color: Colors.white.withOpacity(0.6), width: 2),
-                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.white.withOpacity(0.2), width: 1.5),
+                  borderRadius: BorderRadius.circular(20),
                 ),
               ),
             ),
-            // Laser Line
+            // Laser animation
             Center(
               child: AnimatedBuilder(
                 animation: _animation,
@@ -195,17 +198,16 @@ class _InlineScannerViewState extends State<InlineScannerView> with SingleTicker
                   return Transform.translate(
                     offset: Offset(0, (-frameHeight / 2) + (frameHeight * _animation.value)),
                     child: Container(
-                      width: frameWidth - 10,
-                      height: 2,
+                      width: frameWidth - 30,
+                      height: 1.2,
                       decoration: BoxDecoration(
-                        color: Colors.redAccent,
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.redAccent.withOpacity(0.5),
-                            blurRadius: 4,
-                            spreadRadius: 1,
-                          ),
-                        ],
+                        gradient: LinearGradient(
+                          colors: [
+                            Colors.redAccent.withOpacity(0.0),
+                            Colors.redAccent.withOpacity(0.6),
+                            Colors.redAccent.withOpacity(0.0),
+                          ],
+                        ),
                       ),
                     ),
                   );
@@ -218,20 +220,20 @@ class _InlineScannerViewState extends State<InlineScannerView> with SingleTicker
     );
   }
 
-  Widget _buildControlBtn({required IconData icon, required VoidCallback onPressed, Color? color}) {
+  Widget _buildCornerIconButton({required IconData icon, required VoidCallback onPressed}) {
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: onPressed,
         borderRadius: BorderRadius.circular(30),
         child: Container(
-          padding: const EdgeInsets.all(8),
+          padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-            color: Colors.black.withOpacity(0.4),
+            color: Colors.black.withOpacity(0.35),
             shape: BoxShape.circle,
-            border: Border.all(color: Colors.white.withOpacity(0.1)),
+            border: Border.all(color: Colors.white.withAlpha(25)),
           ),
-          child: Icon(icon, size: 20, color: color ?? Colors.white),
+          child: Icon(icon, size: 20, color: Colors.white),
         ),
       ),
     );

@@ -7,6 +7,7 @@ import '../services/product_service.dart';
 import '../models/product.dart';
 import 'product_form_screen.dart';
 import 'products_screen.dart';
+import '../widgets/app_drawer.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
@@ -60,6 +61,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     return Scaffold(
       backgroundColor: bgColor,
       appBar: const AppHeader(title: 'HOME'),
+      drawer: const AppDrawer(),
       body: RefreshIndicator(
         onRefresh: _loadAllData,
         color: primaryColor,

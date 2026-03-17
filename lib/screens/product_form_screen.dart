@@ -5,6 +5,8 @@ import 'dart:io';
 import '../models/product.dart';
 import '../models/category.dart';
 import '../services/product_service.dart';
+import 'native_scanner_screen.dart';
+import 'package:image_cropper/image_cropper.dart';
 
 class ProductFormScreen extends ConsumerStatefulWidget {
   final Product? product;
@@ -78,8 +80,74 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
   }
 
   Future<void> _pickImage() async {
-    final file = await _imagePicker.pickImage(source: ImageSource.gallery, imageQuality: 80);
-    if (file != null) setState(() => _pickedImage = file);
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (context) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 16),
+                child: Text('Choose Image Source', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textColor)),
+              ),
+              ListTile(
+                leading: const Icon(Icons.camera_alt, color: primaryColor),
+                title: const Text('Camera', style: TextStyle(fontWeight: FontWeight.w600)),
+                onTap: () {
+                  Navigator.pop(context);
+                  _processImage(ImageSource.camera);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo_library, color: primaryColor),
+                title: const Text('Gallery', style: TextStyle(fontWeight: FontWeight.w600)),
+                onTap: () {
+                  Navigator.pop(context);
+                  _processImage(ImageSource.gallery);
+                },
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _processImage(ImageSource source) async {
+    try {
+      final file = await _imagePicker.pickImage(source: source, imageQuality: 80);
+      if (file == null) return;
+
+      final croppedFile = await ImageCropper().cropImage(
+        sourcePath: file.path,
+        aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1),
+        uiSettings: [
+          AndroidUiSettings(
+            toolbarTitle: 'Crop Image',
+            toolbarColor: primaryColor,
+            toolbarWidgetColor: Colors.white,
+            initAspectRatio: CropAspectRatioPreset.square,
+            lockAspectRatio: true,
+            hideBottomControls: false,
+          ),
+          IOSUiSettings(
+            title: 'Crop Image',
+            aspectRatioLockEnabled: true,
+            resetButtonHidden: true,
+          ),
+        ],
+      );
+
+      if (croppedFile != null) {
+        setState(() => _pickedImage = XFile(croppedFile.path));
+      }
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
+    }
   }
 
   Future<void> _save() async {
@@ -111,6 +179,70 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }
+  }
+
+  Future<void> _showAddCategoryDialog() async {
+    final ctrl = TextEditingController();
+    bool isSavingCat = false;
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setStateDialog) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Text('Add New Category', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+          content: TextField(
+            controller: ctrl,
+            decoration: InputDecoration(
+              hintText: 'Category Name', 
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            ),
+            autofocus: true,
+            textCapitalization: TextCapitalization.words,
+          ),
+          actionsPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          actions: [
+            TextButton(
+              onPressed: isSavingCat ? null : () => Navigator.pop(context),
+              child: const Text('Cancel', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
+            ),
+            ElevatedButton(
+              onPressed: isSavingCat ? null : () async {
+                final name = ctrl.text.trim();
+                if (name.isEmpty) return;
+                setStateDialog(() => isSavingCat = true);
+                try {
+                  final newCat = await _productService.createCategory(name);
+                  setState(() {
+                    _categories.add(newCat);
+                    _selectedCategoryId = newCat.id;
+                  });
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Category created!'), backgroundColor: Colors.green));
+                    Navigator.pop(context);
+                  }
+                } catch (e) {
+                  setStateDialog(() => isSavingCat = false);
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
+                  }
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: primaryColor,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                elevation: 0,
+              ),
+              child: isSavingCat 
+                  ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) 
+                  : const Text('Save', style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
+          ],
+        )
+      )
+    );
   }
 
   @override
@@ -174,14 +306,44 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
                   children: [
                     _buildInputField(_nameCtrl, 'Product Name', Icons.inventory_2_outlined, required: true),
                     const Divider(height: 24),
-                    _buildInputField(_barcodeCtrl, 'Barcode / SKU', Icons.qr_code_scanner_outlined, required: true),
+                    _buildInputField(
+                      _barcodeCtrl, 
+                      'Barcode / SKU', 
+                      Icons.qr_code_scanner_outlined, 
+                      required: true,
+                      suffixIcon: IconButton(
+                        icon: const Icon(Icons.center_focus_strong, color: primaryColor),
+                        tooltip: 'Scan Barcode',
+                        onPressed: () async {
+                          final result = await Navigator.push<String?>(
+                            context,
+                            MaterialPageRoute(builder: (_) => const NativeScannerScreen(isFormMode: true)),
+                          );
+                          if (result != null && result.isNotEmpty) {
+                            setState(() => _barcodeCtrl.text = result);
+                          }
+                        },
+                      ),
+                    ),
                     const Divider(height: 24),
-                    _buildDropdownField<int>(
-                      label: 'Category',
-                      icon: Icons.category_outlined,
-                      value: _selectedCategoryId,
-                      items: _categories.map((c) => DropdownMenuItem(value: c.id, child: Text(c.name))).toList(),
-                      onChanged: (v) => setState(() => _selectedCategoryId = v),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildDropdownField<int>(
+                            label: 'Category',
+                            icon: Icons.category_outlined,
+                            value: _selectedCategoryId,
+                            items: _categories.map((c) => DropdownMenuItem(value: c.id, child: Text(c.name))).toList(),
+                            onChanged: (v) => setState(() => _selectedCategoryId = v),
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.add_circle, color: primaryColor, size: 28),
+                          padding: EdgeInsets.zero,
+                          tooltip: 'Add Category',
+                          onPressed: _showAddCategoryDialog,
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -282,6 +444,7 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
     IconData icon, {
     TextInputType keyboardType = TextInputType.text,
     bool required = false,
+    Widget? suffixIcon,
   }) {
     return TextFormField(
       controller: ctrl,
@@ -291,6 +454,7 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
         labelText: label,
         labelStyle: const TextStyle(color: secondaryTextColor, fontWeight: FontWeight.w500),
         prefixIcon: Icon(icon, color: secondaryTextColor, size: 20),
+        suffixIcon: suffixIcon,
         border: InputBorder.none,
         contentPadding: EdgeInsets.zero,
       ),
@@ -310,6 +474,7 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
       items: items,
       onChanged: onChanged,
       icon: const Icon(Icons.unfold_more, color: secondaryTextColor, size: 20),
+      isExpanded: true, // EXTREMELY IMPORTANT: Fixes the Right Overflow Error!
       style: const TextStyle(fontWeight: FontWeight.w600, color: textColor, fontSize: 16),
       decoration: InputDecoration(
         labelText: label,

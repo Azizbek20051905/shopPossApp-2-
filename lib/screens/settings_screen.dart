@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../widgets/app_header.dart';
+import '../widgets/app_drawer.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -14,6 +15,7 @@ class SettingsScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: bgColor,
       appBar: const AppHeader(title: 'SETTINGS'),
+      drawer: const AppDrawer(),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [

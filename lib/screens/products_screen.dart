@@ -7,6 +7,7 @@ import '../widgets/inventory_product_card.dart';
 import '../widgets/app_header.dart';
 import 'native_scanner_screen.dart';
 import 'product_form_screen.dart';
+import '../widgets/app_drawer.dart';
 
 class ProductsScreen extends ConsumerStatefulWidget {
   const ProductsScreen({super.key});
@@ -142,6 +143,7 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
     return Scaffold(
       backgroundColor: bgColor,
       appBar: const AppHeader(title: 'PRODUCTS'),
+      drawer: const AppDrawer(),
       body: Column(
         children: [
           // SEARCH + SCAN BUTTON ROW
